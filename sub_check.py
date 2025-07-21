@@ -46,7 +46,7 @@ def webhook():
 # Установка webhook при запуске
 @app.before_first_request
 def setup_webhook():
-    url = os.getenv("RENDER_EXTERNAL_URL")
+    url = os.getenv("https://sub-check-bot.onrender.com")
     if url:
         telegram_app.bot.set_webhook(url)
 
