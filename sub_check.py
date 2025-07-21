@@ -3,7 +3,7 @@ from flask import Flask, request
 from telegram import Update, InputFile, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
-BOT_TOKEN = os.getenv('7305125772:AAFS7IxXWyKCGv9mg_Hx6VJO4XWRxlCESJc')
+BOT_TOKEN = '7305125772:AAFS7IxXWyKCGv9mg_Hx6VJO4XWRxlCESJc'
 CHANNEL_ID = '@foreign_advice'  # или ID (с -100 в начале)
 ADMIN_ID = int(os.getenv("@idk_whoisyou", "6305610953"))
 
@@ -43,12 +43,12 @@ def webhook():
     telegram_app.update_queue.put_nowait(update)
     return "ok", 200
 
-# Установка webhook при запуске
-@app.before_first_request
-def setup_webhook():
+if __name__ == "__main__":
     url = os.getenv("https://sub-check-bot.onrender.com")
     if url:
         telegram_app.bot.set_webhook(url)
+        print(f"✅ Webhook установлен: {url}")
+    else:
+        print("⚠️ Переменная https://sub-check-bot.onrender.com не задана, вебхук не установлен")
 
-if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
