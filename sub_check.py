@@ -1,54 +1,53 @@
 import os
 from flask import Flask, request
-from telegram import Update, InputFile, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
+import telegram
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Dispatcher, CommandHandler, CallbackQueryHandler
 
-BOT_TOKEN = '7305125772:AAFS7IxXWyKCGv9mg_Hx6VJO4XWRxlCESJc'
-CHANNEL_ID = '@foreign_advice'  # или ID (с -100 в начале)
-ADMIN_ID = int(os.getenv("@idk_whoisyou", "6305610953"))
+TOKEN = "7305125772:AAFS7IxXWyKCGv9mg_Hx6VJO4XWRxlCESJc"
+CHANNEL_USERNAME = "@foreign_advice"  # укажи реальный юзернейм канала
 
-# Команда /start
+bot = telegram.Bot(token=TOKEN)
 app = Flask(__name__)
 
-# Создание Telegram-приложения
-telegram_app = Application.builder().token(BOT_TOKEN).build()
+dispatcher = Dispatcher(bot, None, workers=0)
 
-# /start команда
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [[InlineKeyboardButton("🔍 Проверить подписку", callback_data="check_sub")]]
-    markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("Привет! Подпишитесь на канал и нажмите кнопку ниже 👇", reply_markup=markup)
+# Стартовая команда
+def start(update, context):
+    keyboard = [[InlineKeyboardButton("🔍 Проверить подписку", callback_data="check_subscription")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    update.message.reply_text("Привет! Нажми кнопку ниже, чтобы проверить подписку.", reply_markup=reply_markup)
 
-# Кнопка проверки подписки
-async def check_subscription(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# Обработка нажатия кнопки
+def button(update, context):
     query = update.callback_query
-    await query.answer()
     user_id = query.from_user.id
-    member = await context.bot.get_chat_member(chat_id=CHANNEL_ID, user_id=user_id)
+    device = query.from_user.device if hasattr(query.from_user, 'device') else "неизвестно"
 
-    if member.status in ["member", "administrator", "creator"]:
-        await query.edit_message_text("✅ Подписка подтверждена! Отправляю файл...")
-        with open("example.docx", "rb") as f:
-            await context.bot.send_document(chat_id=user_id, document=InputFile(f, filename="example.docx"))
-    else:
-        await query.edit_message_text(f"❌ Вы не подписаны на {CHANNEL_ID}. Подпишитесь и попробуйте снова.")
+    try:
+        member = bot.get_chat_member(chat_id=CHANNEL_USERNAME, user_id=user_id)
+        if member.status in ["member", "administrator", "creator"]:
+            bot.send_message(chat_id=user_id, text=f"✅ Подписка подтверждена! Устройство: {device}")
+            # Тут можно прикрепить файл: 
+            # bot.send_document(chat_id=user_id, document=open("file.pdf", "rb"))
+        else:
+            bot.send_message(chat_id=user_id, text="❌ Вы не подписаны на канал.")
+    except telegram.error.TelegramError:
+        bot.send_message(chat_id=user_id, text="❌ Не удалось проверить подписку.")
 
-telegram_app.add_handler(CommandHandler("start", start))
-telegram_app.add_handler(CallbackQueryHandler(check_subscription))
+    query.answer()
 
-# Flask route для webhook
+# Регистрация обработчиков
+dispatcher.add_handler(CommandHandler("start", start))
+dispatcher.add_handler(CallbackQueryHandler(button))
+
+# Обработка запроса от Telegram
 @app.route("/", methods=["POST"])
 def webhook():
-    update = Update.de_json(request.get_json(force=True), telegram_app.bot)
-    telegram_app.update_queue.put_nowait(update)
-    return "ok", 200
+    update = telegram.Update.de_json(request.get_json(force=True), bot)
+    dispatcher.process_update(update)
+    return "ok"
 
+# Запуск
 if __name__ == "__main__":
-    url = os.getenv("https://sub-check-bot.onrender.com")
-    if url:
-        telegram_app.bot.set_webhook(url)
-        print(f"✅ Webhook установлен: {url}")
-    else:
-        print("⚠️ Переменная RENDER_EXTERNAL_URL не задана, вебхук не установлен")
-
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
+    app.run(debug=True)
