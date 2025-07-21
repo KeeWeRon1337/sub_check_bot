@@ -49,6 +49,6 @@ if __name__ == "__main__":
         telegram_app.bot.set_webhook(url)
         print(f"✅ Webhook установлен: {url}")
     else:
-        print("⚠️ Переменная https://sub-check-bot.onrender.com не задана, вебхук не установлен")
+        print("⚠️ Переменная RENDER_EXTERNAL_URL не задана, вебхук не установлен")
 
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
